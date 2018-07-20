@@ -7,6 +7,7 @@
 #include "list.h"
 
 #define BLOCK_SIZE 4096
+#define NODE_ALLOC_TYPE 0
 
 static char* _memory_pool = NULL;
 static size_t _pool_size = 0;
@@ -14,7 +15,7 @@ static node_t* _free_list = NULL;
 
 
 // Allocate a node from the memory pool
-static node_t* _node_alloc(key_t key, data_t data)
+static node_t* _node_pool_alloc(void)
 {
     // Need more memory if free list is empty
     if (!_free_list)
@@ -48,16 +49,12 @@ static node_t* _node_alloc(key_t key, data_t data)
     node_t* node = _free_list;
     _free_list = _free_list->next;
 
-    // Set key and data
-    node->key = key;
-    node->data = data;
-
     return node;
 }
 
 
 // Cleanup and deallocate a node object
-static void _node_free(node_t* node)
+static void _node_pool_dealloc(node_t* node)
 {
     if (!node) return;
 
@@ -67,13 +64,77 @@ static void _node_free(node_t* node)
 }
 
 
-// Private recursive list free
-static _list_free(node_t* node)
+// Allocate and return node object with (key, data)
+static node_t* _node_alloc(key_t key, data_t data)
+{
+    node_t* node;
+
+    // Allocate a new node
+    if (NODE_ALLOC_TYPE)
+    {
+        node = _node_pool_alloc();
+    }
+    else
+    {
+        node = (node_t*) malloc(sizeof(node_t));
+    }
+
+    // Set key and data
+    node->key = key;
+    node->data = data;
+
+    return node;
+}
+
+
+// Free node deallocating memory
+static void _node_dealloc(node_t* node)
+{
+    if (!node) return;
+
+    // Deallocate node returning memory to OS
+    if (NODE_ALLOC_TYPE)
+    {
+        _node_pool_dealloc(node);
+    }
+    else
+    {
+        free(node);
+    }
+}
+
+
+// Shift to the node left by <shifts> positions
+static node_t* _node_lshift(node_t* node, size_t shifts)
+{
+    while (node && shifts--)
+    {
+        node = node->prev;
+    }
+
+    return node;
+}
+
+
+// Shift to the node right by <shifts> positions
+static node_t* _node_rshift(node_t* node, size_t shifts)
+{
+    while (node && shifts--)
+    {
+        node = node->next;
+    }
+
+    return node;
+}
+
+
+// Recursive list free
+static void _list_free(node_t* node)
 {
     if (!node) return
 
     _list_free(node->next);
-    free(node);
+    _node_dealloc(node);
 }
 
 
@@ -131,8 +192,15 @@ void list_prepend(list_t* list, key_t key, data_t data)
 }
 
 
+// Add a new node to the list at the specified position O(N)
+void list_insert(list_t* list, size_t index, key_t key, data_t data)
+{
+    
+}
+
+
 // Add a new node in sorted order based on key O(N)
-void list_insert(list_t* list, key_t key, data_t data)
+void list_insort(list_t* list, key_t key, data_t data)
 {
 
 }
