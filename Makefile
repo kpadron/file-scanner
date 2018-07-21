@@ -8,7 +8,6 @@ DEBUG := -g
 OPT := -Og
 
 INC := -I ./inc
-vpath ./src
 
 RM := -rm -f *.o *~ core
 
@@ -18,14 +17,14 @@ all: $(BINS)
 
 r: clean all
 
-scanner: main.o list.o hash.o
-	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -o $@ $^
+scanner: main.o hash.o
+	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -o $@ $^ $(INC)
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -c -o $@ $< $(INC)
 
 %: %.c
 	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -o $@ $<
-
-%.o: %.c
-	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -c -o $@ $^
 
 clean:
 	$(RM) $(BINS)

@@ -4,6 +4,7 @@
 // linked list module
 #ifndef LIST_H
 #define LIST_H
+#include <sdtlib.h>
 
 typedef unsigned key_t; // key value to be used for search and comparison
 typedef void* data_t;   // pointer to data to be stored in list
@@ -38,6 +39,12 @@ extern void list_prepend(list_t* list, key_t key, data_t data);
 // Add new node in sorted order based on key O(N)
 extern void list_insert(list_t* list, key_t key, data_t data);
 
+// Add new node in sorted order based on key O(N)
+extern void list_insort(list_t* list, key_t key, data_t data);
+
+// Return the data of the node at the specified location O(N)
+extern data_t list_access(list_t* list, size_t index);
+
 // Return the data of the first node with the specified key O(N)
 extern data_t list_search(list_t* list, key_t key);
 
@@ -47,7 +54,10 @@ extern data_t list_pop(list_t* list);
 // Remove node from the start of the list returning data O(1)
 extern data_t list_shift(list_t* list);
 
+// Remove node from specified position in the list returning data O(N)
+extern data_t list_remove(list_t* list, size_t index);
+
 // Remove first node with the specified key returning data O(N)
-extern data_t list_remove(list_t* list, key_t key);
+extern data_t list_delete(list_t* list, key_t key);
 
 #endif

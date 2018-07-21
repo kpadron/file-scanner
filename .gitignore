@@ -29,6 +29,7 @@
 *.dylib
 
 # Executables
+scanner
 *.exe
 *.out
 *.app
