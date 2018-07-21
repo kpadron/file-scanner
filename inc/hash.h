@@ -9,10 +9,19 @@
 
 #define BLOCK_SIZE 64
 #define GROWTH_FACTOR 1.6180339887
-#define MAX_ALPHA 5
+#define MAX_ALPHA 20
 
 typedef uint32_t hashkey_t;  // key value to be used for search and comparison
 typedef void* data_t;    // pointer to data to be stored in list
+
+// Function used to compare key values
+// a < b  = -
+// a == b = 0
+// a > b  = +
+static int keycmp(hashkey_t a, hashkey_t b)
+{
+    return ((int64_t) a - (int64_t) b);
+}
 
 // Object representing a hash table entry
 typedef struct
@@ -52,7 +61,10 @@ extern data_t hash_search(hash_t* table, hashkey_t key);
 // Remove entry with specified key returning data O(1)
 extern data_t hash_remove(hash_t* table, hashkey_t key);
 
+// Print table statistics
+extern void hash_print_stats(hash_t* table);
+
 // Debug print used to visualize hash table
-extern void hash_print(hash_t* table);
+extern void hash_print_debug(hash_t* table);
 
 #endif
