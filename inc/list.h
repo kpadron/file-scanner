@@ -2,8 +2,7 @@
 // kpadron.github@gmail.com
 // Kristian Padron
 // linked list module
-#ifndef LIST_H
-#define LIST_H
+#pragma once
 #include <sdtlib.h>
 
 typedef unsigned key_t; // key value to be used for search and comparison
@@ -59,5 +58,3 @@ extern data_t list_remove(list_t* list, size_t index);
 
 // Remove first node with the specified key returning data O(N)
 extern data_t list_delete(list_t* list, key_t key);
-
-#endif

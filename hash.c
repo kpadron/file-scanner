@@ -9,7 +9,7 @@
 
 #include "hash.h"
 
-#define BSEARCH 0
+#define BSEARCH 1
 
 
 // Maps a number to the range [0, n] faster than modulo division
@@ -113,7 +113,7 @@ static void _bucket_binsert(bucket_t* bucket, hashkey_t key, data_t data)
     // Insert and shift entries into place O(N)
     if (index <= bucket->count)
     {
-        memmove(&chain[index + 1], &chain[index], bucket->count++ - index);
+        memmove(&chain[index + 1], &chain[index], (bucket->count++ - index) * sizeof(entry_t));
         chain[index].key = key;
         chain[index].data = data;
     }
@@ -131,7 +131,7 @@ static data_t _bucket_bremove(bucket_t* bucket, hashkey_t key)
     if (index < bucket->count && !keycmp(key, chain[index].key))
     {
         data = chain[index].data;
-        memmove(&chain[index], &chain[index + 1], --bucket->count - index);
+        memmove(&chain[index], &chain[index + 1], (--bucket->count - index) * sizeof(entry_t));
     }
 
     return data;
@@ -164,7 +164,7 @@ static data_t _bucket_search(bucket_t* bucket, hashkey_t key)
     entry_t* chain = bucket->chain;
 
     // Return matching entry
-    if (index != bucket->count)
+    if (index < bucket->count)
     {
         data = chain[index].data;
     }
@@ -199,10 +199,10 @@ static data_t _bucket_remove(bucket_t* bucket, hashkey_t key)
     entry_t* chain = bucket->chain;
 
     // Shift entries into place O(N)
-    if (index != bucket->count)
+    if (index < bucket->count)
     {
         data = chain[index].data;
-        memmove(&chain[index], &chain[index + 1], --bucket->count - index);
+        memmove(&chain[index], &chain[index + 1], (--bucket->count - index) * sizeof(entry_t));
     }
 
     return data;

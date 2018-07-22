@@ -30,6 +30,7 @@
 
 # Executables
 scanner
+hash_test
 *.exe
 *.out
 *.app

@@ -95,12 +95,7 @@ int main(int argc, char** argv)
                 void* hd = hash_search(&table, k);
                 test_time += wtime() - test_start;
 
-                if (hd != d)
-                {
-                    printf("i: %zu, cycle: %zu\n", (size_t) i, (size_t) test_cycles);
-                    printf("index: %zu, k: %zu, d: %p, hd %p\n", (size_t) index, (size_t) k, d, hd);
-                    assert(hd == d);
-                }
+                assert(hd == d);
             }
             else if (!strcmp(tests[i], "hash_remove"))
             {

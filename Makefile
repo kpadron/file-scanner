@@ -5,7 +5,7 @@ CC := gcc
 
 CFLAGS := -Wall -Wextra
 DEBUG := -g
-OPT :=
+OPT := -Og
 
 INC := -I ./inc
 

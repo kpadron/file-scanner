@@ -2,14 +2,13 @@
 // kpadron.github@gmail.com
 // Kristian Padron
 // hash table module
-#ifndef HASH_H
-#define HASH_H
+#pragma once
 #include <stdlib.h>
 #include <stdint.h>
 
 #define BLOCK_SIZE 64
 #define GROWTH_FACTOR 1.6180339887
-#define MAX_ALPHA 20
+#define MAX_ALPHA 50
 
 typedef uint32_t hashkey_t;  // key value to be used for search and comparison
 typedef void* data_t;    // pointer to data to be stored in list
@@ -18,7 +17,7 @@ typedef void* data_t;    // pointer to data to be stored in list
 // a < b  = -
 // a == b = 0
 // a > b  = +
-static int keycmp(hashkey_t a, hashkey_t b)
+static inline int keycmp(hashkey_t a, hashkey_t b)
 {
     return ((int64_t) a - (int64_t) b);
 }
@@ -66,5 +65,3 @@ extern void hash_print_stats(hash_t* table);
 
 // Debug print used to visualize hash table
 extern void hash_print_debug(hash_t* table);
-
-#endif
