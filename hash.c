@@ -22,7 +22,7 @@ static inline uint32_t _map32(uint32_t x, uint32_t n)
 // Perform one-at-a-time hash on input bytes
 static inline uint32_t _hash_oaat(void* key, size_t length)
 {
-    char* p = (char*) key;
+    uint8_t* p = (uint8_t*) key;
     register uint32_t h = 0;
 
     for (size_t i = 0; i < length; i++)
@@ -35,6 +35,21 @@ static inline uint32_t _hash_oaat(void* key, size_t length)
     h += h << 3;
     h ^= h >> 11;
     h += h << 15;
+
+    return h;
+}
+
+
+// Perform FNV-1a hash on input bytes
+static inline uint32_t _hash_fnv1a(void* key, size_t length)
+{
+    uint8_t* p = (uint8_t*) key;
+    register uint32_t h = 2166136261;
+
+    for (size_t i = 0; i < length; i++)
+    {
+        h = (h ^ p[i]) * 16777619;
+    }
 
     return h;
 }
