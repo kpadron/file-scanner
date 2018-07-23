@@ -4,8 +4,7 @@
 CC := gcc
 
 CFLAGS := -Wall -Wextra
-DEBUG := -g
-OPT := -Og
+DEBUG := -g -Og
 
 INC := -I ./inc
 
@@ -18,16 +17,16 @@ all: $(BINS)
 test: hash_test
 
 scanner: scanner.o hash.o
-	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -o $@ $^ $(INC)
+	$(CC) $(CFLAGS) $(DEBUG) -o $@ $^ $(INC)
 
 hash_test: hash_test.c hash.o
-	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -o $@ $^ $(INC)
+	$(CC) $(CFLAGS) $(DEBUG) -o $@ $^ $(INC)
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -c -o $@ $< $(INC)
+	$(CC) $(CFLAGS) $(DEBUG) -c -o $@ $< $(INC)
 
 %: %.c
-	$(CC) $(CFLAGS) $(DEBUG) $(OPT) -o $@ $<
+	$(CC) $(CFLAGS) $(DEBUG) -o $@ $<
 
 r: clean all
 

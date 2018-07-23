@@ -65,7 +65,7 @@ static void _bucket_init(bucket_t* bucket)
 
 
 // Return index to the position of entry with specified key O(log N)
-static uint32_t _bucket_index_bsearch(bucket_t* bucket, hashkey_t key)
+static uint32_t _bucket_index_bsearch(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
 {
     entry_t* sorted = bucket->chain;
 
@@ -94,12 +94,12 @@ static uint32_t _bucket_index_bsearch(bucket_t* bucket, hashkey_t key)
 
 
 // Return data of entry with specified key O(log N)
-static data_t _bucket_bsearch(bucket_t* bucket, hashkey_t key)
+static data_t _bucket_bsearch(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
 {
     data_t data = NULL;
 
     // Find matching entry O(log N)
-    uint32_t index = _bucket_index_bsearch(bucket, key);
+    uint32_t index = _bucket_index_bsearch(bucket, keycmp, key);
     entry_t* chain = bucket->chain;
 
     // Return matching entry
@@ -112,7 +112,7 @@ static data_t _bucket_bsearch(bucket_t* bucket, hashkey_t key)
 }
 
 // Insert new entry into bucket in sorted order O(N)
-static void _bucket_binsert(bucket_t* bucket, hashkey_t key, data_t data)
+static void _bucket_binsert(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key, data_t data)
 {
     // Expand bucket memory if necessary
     if (bucket->count == bucket->size)
@@ -122,7 +122,7 @@ static void _bucket_binsert(bucket_t* bucket, hashkey_t key, data_t data)
     }
 
     // Determine position to insert at O(log N)
-    uint32_t index = _bucket_index_bsearch(bucket, key);
+    uint32_t index = _bucket_index_bsearch(bucket, keycmp, key);
     entry_t* chain = bucket->chain;
 
     // Insert and shift entries into place O(N)
@@ -134,12 +134,12 @@ static void _bucket_binsert(bucket_t* bucket, hashkey_t key, data_t data)
     }
 }
 
-static data_t _bucket_bremove(bucket_t* bucket, hashkey_t key)
+static data_t _bucket_bremove(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
 {
     data_t data = NULL;
 
     // Find matching entry O(log N)
-    uint32_t index = _bucket_index_bsearch(bucket, key);
+    uint32_t index = _bucket_index_bsearch(bucket, keycmp, key);
     entry_t* chain = bucket->chain;
 
     // Shift entries into place O(N)
@@ -154,7 +154,7 @@ static data_t _bucket_bremove(bucket_t* bucket, hashkey_t key)
 
 
 // Return index to entry with specified key O(N)
-static uint32_t _bucket_index_search(bucket_t* bucket, hashkey_t key)
+static uint32_t _bucket_index_search(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
 {
     uint32_t i = 0;
 
@@ -170,12 +170,12 @@ static uint32_t _bucket_index_search(bucket_t* bucket, hashkey_t key)
 
 
 // Return data of entry with specified key O(N)
-static data_t _bucket_search(bucket_t* bucket, hashkey_t key)
+static data_t _bucket_search(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
 {
     data_t data = NULL;
 
     // Find matching entry O(N)
-    uint32_t index = _bucket_index_search(bucket, key);
+    uint32_t index = _bucket_index_search(bucket, keycmp, key);
     entry_t* chain = bucket->chain;
 
     // Return matching entry
@@ -189,7 +189,7 @@ static data_t _bucket_search(bucket_t* bucket, hashkey_t key)
 
 
 // Insert new entry into bucket O(1)
-static void _bucket_insert(bucket_t* bucket, hashkey_t key, data_t data)
+static void _bucket_insert(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key, data_t data)
 {
     // Expand bucket memory if necessary
     if (bucket->count == bucket->size)
@@ -205,12 +205,12 @@ static void _bucket_insert(bucket_t* bucket, hashkey_t key, data_t data)
 
 
 // Remove entry with specified key from bucket returning data O(N)
-static data_t _bucket_remove(bucket_t* bucket, hashkey_t key)
+static data_t _bucket_remove(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
 {
     data_t data = NULL;
 
     // Find matching entry O(N)
-    uint32_t index = _bucket_index_search(bucket, key);
+    uint32_t index = _bucket_index_search(bucket, keycmp, key);
     entry_t* chain = bucket->chain;
 
     // Shift entries into place O(N)
@@ -224,34 +224,17 @@ static data_t _bucket_remove(bucket_t* bucket, hashkey_t key)
 }
 
 
-// Initialize a hash table object
-void hash_init(hash_t* table, uint64_t size)
-{
-    if (!table) return;
-
-    table->entries = 0;
-    table->size = size;
-    table->buckets = (bucket_t*) malloc(table->size * sizeof(bucket_t));
-
-    // Initialize buckets
-    for (uint64_t i = 0; i < table->size; i++)
-    {
-        _bucket_init(&table->buckets[i]);
-    }
-}
-
-
 // Create new larger hash table
-void hash_rehash(hash_t* table)
+static void _hash_rehash(hash_t* table, uint32_t size)
 {
     if (!table) return;
 
     bucket_t* old_buckets = table->buckets;
-    uint64_t old_size = table->size;
+    uint32_t old_size = table->size;
 
-    hash_init(table, table->size * GROWTH_FACTOR);
+    hash_init(table, size, table->keysize, table->keycmp);
 
-    for (uint64_t i = 0; i < old_size; i++)
+    for (uint32_t i = 0; i < old_size; i++)
     {
         bucket_t* bucket = &old_buckets[i];
 
@@ -269,12 +252,31 @@ void hash_rehash(hash_t* table)
 }
 
 
+// Initialize a hash table object
+void hash_init(hash_t* table, uint32_t size, size_t (*keysize)(const void* key), int (*keycmp)(const void* a, const void* b))
+{
+    if (!table) return;
+
+    table->entries = 0;
+    table->size = size;
+    table->buckets = (bucket_t*) malloc(table->size * sizeof(bucket_t));
+    table->keysize = keysize;
+    table->keycmp = keycmp;
+
+    // Initialize buckets
+    for (uint32_t i = 0; i < table->size; i++)
+    {
+        _bucket_init(&table->buckets[i]);
+    }
+}
+
+
 // Cleanup and deallocate a hash table object
 void hash_free(hash_t* table)
 {
     if (!table) return;
 
-    for (uint64_t i = 0; i < table->size; i++)
+    for (uint32_t i = 0; i < table->size; i++)
     {
         free(table->buckets[i].chain);
     }
@@ -288,16 +290,16 @@ void hash_insert(hash_t* table, hashkey_t key, data_t data)
     if (!table) return;
 
     // Determine which bucket to process
-    uint32_t hash = _hash_oaat(&key, sizeof key);
-    uint64_t index = _map32(hash, table->size);
+    uint32_t hash = _hash_oaat(key, table->keysize(key));
+    uint32_t index = _map32(hash, table->size);
 
     // Insert into bucket
-    if (BSEARCH) _bucket_binsert(&table->buckets[index], key, data);
-    else _bucket_insert(&table->buckets[index], key, data);
+    if (BSEARCH) _bucket_binsert(&table->buckets[index], table->keycmp, key, data);
+    else _bucket_insert(&table->buckets[index], table->keycmp, key, data);
     table->entries++;
 
     // Resize table if necessary
-    if (table->entries / table->size >= MAX_ALPHA) hash_rehash(table);
+    if (table->entries / table->size >= MAX_ALPHA) _hash_rehash(table, table->size * GROWTH_FACTOR);
 }
 
 
@@ -309,12 +311,12 @@ data_t hash_search(hash_t* table, hashkey_t key)
     data_t data = NULL;
 
     // Determine which bucket to process
-    uint32_t hash = _hash_oaat(&key, sizeof key);
-    uint64_t index = _map32(hash, table->size);
+    uint32_t hash = _hash_oaat(key, table->keysize(key));
+    uint32_t index = _map32(hash, table->size);
 
     // Search bucket for key
-    if (BSEARCH) data = _bucket_bsearch(&table->buckets[index], key);
-    else data = _bucket_search(&table->buckets[index], key);
+    if (BSEARCH) data = _bucket_bsearch(&table->buckets[index], table->keycmp, key);
+    else data = _bucket_search(&table->buckets[index], table->keycmp, key);
 
     return data;
 }
@@ -328,12 +330,16 @@ data_t hash_remove(hash_t* table, hashkey_t key)
     data_t data = NULL;
 
     // Determine which bucket to process
-    uint32_t hash = _hash_oaat(&key, sizeof key);
-    uint64_t index = _map32(hash, table->size);
+    uint32_t hash = _hash_oaat(&key, table->keysize(key));
+    uint32_t index = _map32(hash, table->size);
 
     // Remove entry from bucket
-    if (BSEARCH) data = _bucket_bremove(&table->buckets[index], key);
-    else data = _bucket_remove(&table->buckets[index], key);
+    if (BSEARCH) data = _bucket_bremove(&table->buckets[index], table->keycmp, key);
+    else data = _bucket_remove(&table->buckets[index], table->keycmp, key);
+    if (data) table->entries--;
+
+    // Resize table if necessary
+    if (table->entries / table->size < MAX_ALPHA / 4) _hash_rehash(table, table->size / 2);
 
     return data;
 }
@@ -348,7 +354,7 @@ void hash_print_stats(hash_t* table)
     uint32_t min = UINT32_MAX;
     uint32_t avg = 0;
 
-    for (uint64_t i = 0; i < table->size; i++)
+    for (uint32_t i = 0; i < table->size; i++)
     {
         bucket_t* bucket = &table->buckets[i];
 
@@ -367,7 +373,7 @@ void hash_print_debug(hash_t* table)
 {
     if (!table) return;
 
-    for (uint64_t i = 0; i < table->size; i++)
+    for (uint32_t i = 0; i < table->size; i++)
     {
         bucket_t* bucket = &table->buckets[i];
 

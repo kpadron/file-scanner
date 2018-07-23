@@ -44,6 +44,21 @@ void pairlist_insert(pairlist_t* list, uint32_t key, void* data)
     list->array[list->count++].flag = 0;
 }
 
+size_t keysize(const void* key)
+{
+    return sizeof *(uint32_t*) key;
+}
+
+int keycmp(const void* a, const void* b)
+{
+    uint32_t x = *(uint32_t*) a;
+    uint32_t y = *(uint32_t*) b;
+
+    if (x < y) return -1;
+    else if (x == y) return 0;
+    else return 1;
+}
+
 int main(int argc, char** argv)
 {
     char* tests[] = { "hash_insert", "hash_search", "hash_remove" };
@@ -64,7 +79,7 @@ int main(int argc, char** argv)
 
     size_t unique = 0;
 
-    hash_init(&table, 10);
+    hash_init(&table, 10, keysize, keycmp);
 
     for (size_t i = 0; i < 3; i++)
     {
@@ -77,12 +92,13 @@ int main(int argc, char** argv)
             if (!strcmp(tests[i], "hash_insert"))
             {
                 uint32_t k = unique++;
-                void* d = malloc(rand32()%9+1);
+                void* d = malloc(sizeof(uint32_t));
+                *(uint32_t*)d = k;
 
                 pairlist_insert(&list, k, d);
 
                 test_start = wtime();
-                hash_insert(&table, k, d);
+                hash_insert(&table, d, d);
                 test_time += wtime() - test_start;
             }
             else if (!strcmp(tests[i], "hash_search"))
@@ -92,7 +108,7 @@ int main(int argc, char** argv)
                 void* d = list.array[index].data;
 
                 test_start = wtime();
-                void* hd = hash_search(&table, k);
+                void* hd = hash_search(&table, &k);
                 test_time += wtime() - test_start;
 
                 assert(hd == d);
@@ -105,7 +121,7 @@ int main(int argc, char** argv)
                 uint8_t f = list.array[index].flag;
 
                 test_start = wtime();
-                void* hd = hash_remove(&table, k);
+                void* hd = hash_remove(&table, &k);
                 test_time += wtime() - test_start;
 
                 if (!f)
