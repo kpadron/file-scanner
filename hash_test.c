@@ -17,7 +17,7 @@ uint64_t rand64(void);
 
 typedef struct
 {
-    uint32_t key;
+    char* key;
     void* data;
     uint8_t flag;
 } pair_t;
@@ -29,7 +29,7 @@ typedef struct
     pair_t* array;
 } pairlist_t;
 
-void pairlist_insert(pairlist_t* list, uint32_t key, void* data)
+void pairlist_insert(pairlist_t* list, char* key, void* data)
 {
     if (!list) return;
 
@@ -44,19 +44,14 @@ void pairlist_insert(pairlist_t* list, uint32_t key, void* data)
     list->array[list->count++].flag = 0;
 }
 
-size_t keysize(const void* key)
+static inline size_t keysize(void* key)
 {
-    return sizeof *(uint32_t*) key;
+    return strlen((char*) key);
 }
 
-int keycmp(const void* a, const void* b)
+static inline int keycmp(void* a, void* b)
 {
-    uint32_t x = *(uint32_t*) a;
-    uint32_t y = *(uint32_t*) b;
-
-    if (x < y) return -1;
-    else if (x == y) return 0;
-    else return 1;
+    return strcmp((char*) a, (char*) b);
 }
 
 int main(int argc, char** argv)
@@ -77,9 +72,9 @@ int main(int argc, char** argv)
     list.size = 10000;
     list.array = NULL;
 
-    size_t unique = 0;
-
     hash_init(&table, 10, keysize, keycmp);
+
+    FILE* dict = fopen("words.txt", "r");
 
     for (size_t i = 0; i < 3; i++)
     {
@@ -91,9 +86,17 @@ int main(int argc, char** argv)
         {
             if (!strcmp(tests[i], "hash_insert"))
             {
-                uint32_t k = unique++;
-                void* d = malloc(sizeof(uint32_t));
-                *(uint32_t*)d = k;
+                char str[256];
+                if (!fgets(str, 255, dict)) break;
+                str[strlen(str) - 1] = '\0';
+
+                if (!strcmp(str, "Z"))
+                {
+                    break;
+                }
+
+                void* d = strdup(str);
+                char* k = d;
 
                 pairlist_insert(&list, k, d);
 
@@ -104,24 +107,27 @@ int main(int argc, char** argv)
             else if (!strcmp(tests[i], "hash_search"))
             {
                 uint64_t index = rand64()%list.count;
-                uint32_t k = list.array[index].key;
+                char* k = list.array[index].key;
                 void* d = list.array[index].data;
 
                 test_start = wtime();
-                void* hd = hash_search(&table, &k);
+                void* hd = hash_search(&table, k);
                 test_time += wtime() - test_start;
 
-                assert(hd == d);
+                if (hd != d)
+                {
+                    assert(hd == d);
+                }
             }
             else if (!strcmp(tests[i], "hash_remove"))
             {
                 uint64_t index = rand64()%list.count;
-                uint32_t k = list.array[index].key;
+                char* k = list.array[index].key;
                 void* d = list.array[index].data;
                 uint8_t f = list.array[index].flag;
 
                 test_start = wtime();
-                void* hd = hash_remove(&table, &k);
+                void* hd = hash_remove(&table, k);
                 test_time += wtime() - test_start;
 
                 if (!f)

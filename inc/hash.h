@@ -6,9 +6,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 32
 #define GROWTH_FACTOR 1.6180339887
-#define MAX_ALPHA 50
+#define MAX_ALPHA 64
 
 typedef void* hashkey_t; // key value to be used for search and comparison
 typedef void* data_t;    // pointer to data to be stored in list
@@ -35,12 +35,12 @@ typedef struct
     uint32_t size;
     bucket_t* buckets;
 
-    size_t (*keysize)(const void* key);
-    int (*keycmp)(const void* a, const void* b);
+    int (*keycmp)(void*, void*);
+    size_t (*keysize)(void*);
 } hash_t;
 
 // Initalize a hash table object
-extern void hash_init(hash_t* table, uint32_t size, size_t (*keysize)(const void* key), int (*keycmp)(const void* a, const void* b));
+extern void hash_init(hash_t* table, uint32_t size, size_t (*keysize)(void*), int (*keycmp)(void*, void*));
 
 // Cleanup and deallocate a hash table object
 extern void hash_free(hash_t* table);

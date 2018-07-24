@@ -6,13 +6,21 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
 
 #include "hash.h"
 
-#define BSEARCH 1
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 
-// Maps a number to the range [0, n] faster than modulo division
+// Maps a number to the range [0, n)
+static inline uint32_t _map(uint32_t x, uint32_t n)
+{
+    return x % n;
+}
+
+// Maps a number to the range [0, n) faster than modulo division
 static inline uint32_t _map32(uint32_t x, uint32_t n)
 {
     return ((uint64_t) x * (uint64_t) n) >> 32;
@@ -65,7 +73,7 @@ static void _bucket_init(bucket_t* bucket)
 
 
 // Return index to the position of entry with specified key O(log N)
-static uint32_t _bucket_index_bsearch(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
+static uint32_t _bucket_index_bsearch(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key)
 {
     entry_t* sorted = bucket->chain;
 
@@ -94,7 +102,7 @@ static uint32_t _bucket_index_bsearch(bucket_t* bucket, int (*keycmp)(const void
 
 
 // Return data of entry with specified key O(log N)
-static data_t _bucket_bsearch(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
+static data_t _bucket_bsearch(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key)
 {
     data_t data = NULL;
 
@@ -112,7 +120,7 @@ static data_t _bucket_bsearch(bucket_t* bucket, int (*keycmp)(const void* a, con
 }
 
 // Insert new entry into bucket in sorted order O(N)
-static void _bucket_binsert(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key, data_t data)
+static void _bucket_binsert(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key, data_t data)
 {
     // Expand bucket memory if necessary
     if (bucket->count == bucket->size)
@@ -125,8 +133,13 @@ static void _bucket_binsert(bucket_t* bucket, int (*keycmp)(const void* a, const
     uint32_t index = _bucket_index_bsearch(bucket, keycmp, key);
     entry_t* chain = bucket->chain;
 
+    // Update existing entry (duplicates not allowed!)
+    if (index < bucket->count && !keycmp(key, chain[index].key))
+    {
+        chain[index].data = data;
+    }
     // Insert and shift entries into place O(N)
-    if (index <= bucket->count)
+    else if (index <= bucket->count)
     {
         memmove(&chain[index + 1], &chain[index], (bucket->count++ - index) * sizeof(entry_t));
         chain[index].key = key;
@@ -134,7 +147,7 @@ static void _bucket_binsert(bucket_t* bucket, int (*keycmp)(const void* a, const
     }
 }
 
-static data_t _bucket_bremove(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
+static data_t _bucket_bremove(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key)
 {
     data_t data = NULL;
 
@@ -153,81 +166,10 @@ static data_t _bucket_bremove(bucket_t* bucket, int (*keycmp)(const void* a, con
 }
 
 
-// Return index to entry with specified key O(N)
-static uint32_t _bucket_index_search(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
-{
-    uint32_t i = 0;
-
-    for (; i < bucket->count; i++)
-    {
-        entry_t* entry = &bucket->chain[i];
-
-        if (!keycmp(key, entry->key)) break;
-    }
-
-    return i;
-}
-
-
-// Return data of entry with specified key O(N)
-static data_t _bucket_search(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
-{
-    data_t data = NULL;
-
-    // Find matching entry O(N)
-    uint32_t index = _bucket_index_search(bucket, keycmp, key);
-    entry_t* chain = bucket->chain;
-
-    // Return matching entry
-    if (index < bucket->count)
-    {
-        data = chain[index].data;
-    }
-
-    return data;
-}
-
-
-// Insert new entry into bucket O(1)
-static void _bucket_insert(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key, data_t data)
-{
-    // Expand bucket memory if necessary
-    if (bucket->count == bucket->size)
-    {
-        bucket->size += BLOCK_SIZE;
-        bucket->chain = (entry_t*) realloc(bucket->chain, bucket->size * sizeof(entry_t));
-    }
-
-    // Insert entry into bucket in sorted order by key
-    bucket->chain[bucket->count].key = key;
-    bucket->chain[bucket->count++].data = data;
-}
-
-
-// Remove entry with specified key from bucket returning data O(N)
-static data_t _bucket_remove(bucket_t* bucket, int (*keycmp)(const void* a, const void* b), hashkey_t key)
-{
-    data_t data = NULL;
-
-    // Find matching entry O(N)
-    uint32_t index = _bucket_index_search(bucket, keycmp, key);
-    entry_t* chain = bucket->chain;
-
-    // Shift entries into place O(N)
-    if (index < bucket->count)
-    {
-        data = chain[index].data;
-        memmove(&chain[index], &chain[index + 1], (--bucket->count - index) * sizeof(entry_t));
-    }
-
-    return data;
-}
-
-
 // Create new larger hash table
 static void _hash_rehash(hash_t* table, uint32_t size)
 {
-    if (!table) return;
+    if (!table || size == table->size) return;
 
     bucket_t* old_buckets = table->buckets;
     uint32_t old_size = table->size;
@@ -253,13 +195,14 @@ static void _hash_rehash(hash_t* table, uint32_t size)
 
 
 // Initialize a hash table object
-void hash_init(hash_t* table, uint32_t size, size_t (*keysize)(const void* key), int (*keycmp)(const void* a, const void* b))
+void hash_init(hash_t* table, uint32_t size, size_t (*keysize)(void*), int (*keycmp)(void*, void*))
 {
     if (!table) return;
 
     table->entries = 0;
     table->size = size;
     table->buckets = (bucket_t*) malloc(table->size * sizeof(bucket_t));
+
     table->keysize = keysize;
     table->keycmp = keycmp;
 
@@ -289,17 +232,16 @@ void hash_insert(hash_t* table, hashkey_t key, data_t data)
 {
     if (!table) return;
 
+    // Resize table if necessary
+    if (table->entries / table->size >= MAX_ALPHA) _hash_rehash(table, MAX(table->size * GROWTH_FACTOR, 8));
+
     // Determine which bucket to process
     uint32_t hash = _hash_oaat(key, table->keysize(key));
     uint32_t index = _map32(hash, table->size);
 
     // Insert into bucket
-    if (BSEARCH) _bucket_binsert(&table->buckets[index], table->keycmp, key, data);
-    else _bucket_insert(&table->buckets[index], table->keycmp, key, data);
+    _bucket_binsert(&table->buckets[index], table->keycmp, key, data);
     table->entries++;
-
-    // Resize table if necessary
-    if (table->entries / table->size >= MAX_ALPHA) _hash_rehash(table, table->size * GROWTH_FACTOR);
 }
 
 
@@ -308,15 +250,12 @@ data_t hash_search(hash_t* table, hashkey_t key)
 {
     if (!table) return NULL;
 
-    data_t data = NULL;
-
     // Determine which bucket to process
     uint32_t hash = _hash_oaat(key, table->keysize(key));
     uint32_t index = _map32(hash, table->size);
 
     // Search bucket for key
-    if (BSEARCH) data = _bucket_bsearch(&table->buckets[index], table->keycmp, key);
-    else data = _bucket_search(&table->buckets[index], table->keycmp, key);
+    data_t data = _bucket_bsearch(&table->buckets[index], table->keycmp, key);
 
     return data;
 }
@@ -325,21 +264,18 @@ data_t hash_search(hash_t* table, hashkey_t key)
 // Remove entry with specified key returning data O(1)
 data_t hash_remove(hash_t* table, hashkey_t key)
 {
-    if (!table) return NULL;
-
-    data_t data = NULL;
+    if (!table || !table->entries) return NULL;
 
     // Determine which bucket to process
-    uint32_t hash = _hash_oaat(&key, table->keysize(key));
+    uint32_t hash = _hash_oaat(key, table->keysize(key));
     uint32_t index = _map32(hash, table->size);
 
     // Remove entry from bucket
-    if (BSEARCH) data = _bucket_bremove(&table->buckets[index], table->keycmp, key);
-    else data = _bucket_remove(&table->buckets[index], table->keycmp, key);
+    data_t data = _bucket_bremove(&table->buckets[index], table->keycmp, key);
     if (data) table->entries--;
 
     // Resize table if necessary
-    if (table->entries / table->size < MAX_ALPHA / 4) _hash_rehash(table, table->size / 2);
+    if (table->entries / table->size < MAX_ALPHA / 4) _hash_rehash(table, MAX(table->size / 2, 8));
 
     return data;
 }
@@ -364,7 +300,8 @@ void hash_print_stats(hash_t* table)
     }
 
     printf("entries: %zu, size: %zu, alpha %.2f\n", (size_t) table->entries, (size_t) table->size, (float) table->entries / table->size);
-    printf("min-depth: %zu, avg-depth: %zu, max-depth: %zu\n", (size_t) min, (size_t) avg / table->size, (size_t) max);
+    printf("min-depth: %zu, avg-depth: %.0f, max-depth: %zu\n", (size_t) min, (float) avg / table->size, (size_t) max);
+    printf("overhead in bytes: %zu\n", (size_t) avg * sizeof(entry_t) + table->size * sizeof(bucket_t) + sizeof(hash_t));
 }
 
 
