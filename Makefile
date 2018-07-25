@@ -16,7 +16,7 @@ all: $(BINS)
 
 test: hash_test
 
-scanner: scanner.o hash.o
+scanner: main.o scanner.o stack.o
 	$(CC) $(CFLAGS) $(DEBUG) -o $@ $^ $(INC)
 
 hash_test: hash_test.c hash.o

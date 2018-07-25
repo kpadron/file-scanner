@@ -6,18 +6,18 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define BLOCK_SIZE 32
-#define GROWTH_FACTOR 1.6180339887
-#define MAX_ALPHA 64
+#define HASH_BLOCK_SIZE 32
+#define HASH_GROWTH_FACTOR 1.6180339887
+#define HASH_MAX_ALPHA 64
 
 typedef void* hashkey_t; // key value to be used for search and comparison
-typedef void* data_t;    // pointer to data to be stored in list
+typedef void* hashdata_t;    // pointer to data to be stored in list
 
 // Object representing a hash table entry
 typedef struct
 {
     hashkey_t key;
-    data_t data;
+    hashdata_t data;
 } entry_t;
 
 // Object representing a hash table bucket chain
@@ -46,13 +46,13 @@ extern void hash_init(hash_t* table, uint32_t size, size_t (*keysize)(void*), in
 extern void hash_free(hash_t* table);
 
 // Insert new entry into hash table using specified key O(1)
-extern void hash_insert(hash_t* table, hashkey_t key, data_t data);
+extern void hash_insert(hash_t* table, hashkey_t key, hashdata_t data);
 
 // Return data of the entry with specified key O(1)
-extern data_t hash_search(hash_t* table, hashkey_t key);
+extern hashdata_t hash_search(hash_t* table, hashkey_t key);
 
 // Remove entry with specified key returning data O(1)
-extern data_t hash_remove(hash_t* table, hashkey_t key);
+extern hashdata_t hash_remove(hash_t* table, hashkey_t key);
 
 // Print table statistics
 extern void hash_print_stats(hash_t* table);

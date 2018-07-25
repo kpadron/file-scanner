@@ -102,9 +102,9 @@ static uint32_t _bucket_index_bsearch(bucket_t* bucket, int (*keycmp)(void*, voi
 
 
 // Return data of entry with specified key O(log N)
-static data_t _bucket_bsearch(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key)
+static hashdata_t _bucket_bsearch(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key)
 {
-    data_t data = NULL;
+    hashdata_t data = NULL;
 
     // Find matching entry O(log N)
     uint32_t index = _bucket_index_bsearch(bucket, keycmp, key);
@@ -120,12 +120,12 @@ static data_t _bucket_bsearch(bucket_t* bucket, int (*keycmp)(void*, void*), has
 }
 
 // Insert new entry into bucket in sorted order O(N)
-static void _bucket_binsert(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key, data_t data)
+static void _bucket_binsert(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key, hashdata_t data)
 {
     // Expand bucket memory if necessary
     if (bucket->count == bucket->size)
     {
-        bucket->size += BLOCK_SIZE;
+        bucket->size += HASH_BLOCK_SIZE;
         bucket->chain = (entry_t*) realloc(bucket->chain, bucket->size * sizeof(entry_t));
     }
 
@@ -147,9 +147,9 @@ static void _bucket_binsert(bucket_t* bucket, int (*keycmp)(void*, void*), hashk
     }
 }
 
-static data_t _bucket_bremove(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key)
+static hashdata_t _bucket_bremove(bucket_t* bucket, int (*keycmp)(void*, void*), hashkey_t key)
 {
-    data_t data = NULL;
+    hashdata_t data = NULL;
 
     // Find matching entry O(log N)
     uint32_t index = _bucket_index_bsearch(bucket, keycmp, key);
@@ -228,12 +228,12 @@ void hash_free(hash_t* table)
 
 
 // Insert new entry into hash table using specified key O(1)
-void hash_insert(hash_t* table, hashkey_t key, data_t data)
+void hash_insert(hash_t* table, hashkey_t key, hashdata_t data)
 {
     if (!table) return;
 
     // Resize table if necessary
-    if (table->entries / table->size >= MAX_ALPHA) _hash_rehash(table, MAX(table->size * GROWTH_FACTOR, 8));
+    if (table->entries / table->size >= HASH_MAX_ALPHA) _hash_rehash(table, MAX(table->size * HASH_GROWTH_FACTOR, 8));
 
     // Determine which bucket to process
     uint32_t hash = _hash_oaat(key, table->keysize(key));
@@ -246,7 +246,7 @@ void hash_insert(hash_t* table, hashkey_t key, data_t data)
 
 
 // Return data of the entry with specified key O(1)
-data_t hash_search(hash_t* table, hashkey_t key)
+hashdata_t hash_search(hash_t* table, hashkey_t key)
 {
     if (!table) return NULL;
 
@@ -255,14 +255,14 @@ data_t hash_search(hash_t* table, hashkey_t key)
     uint32_t index = _map32(hash, table->size);
 
     // Search bucket for key
-    data_t data = _bucket_bsearch(&table->buckets[index], table->keycmp, key);
+    hashdata_t data = _bucket_bsearch(&table->buckets[index], table->keycmp, key);
 
     return data;
 }
 
 
 // Remove entry with specified key returning data O(1)
-data_t hash_remove(hash_t* table, hashkey_t key)
+hashdata_t hash_remove(hash_t* table, hashkey_t key)
 {
     if (!table || !table->entries) return NULL;
 
@@ -271,11 +271,11 @@ data_t hash_remove(hash_t* table, hashkey_t key)
     uint32_t index = _map32(hash, table->size);
 
     // Remove entry from bucket
-    data_t data = _bucket_bremove(&table->buckets[index], table->keycmp, key);
+    hashdata_t data = _bucket_bremove(&table->buckets[index], table->keycmp, key);
     if (data) table->entries--;
 
     // Resize table if necessary
-    if (table->entries / table->size < MAX_ALPHA / 4) _hash_rehash(table, MAX(table->size / 2, 8));
+    if (table->entries / table->size < HASH_MAX_ALPHA / 4) _hash_rehash(table, MAX(table->size / 2, 8));
 
     return data;
 }
