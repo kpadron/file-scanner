@@ -58,6 +58,10 @@ extern uint32_t file_hash(char* filepath, size_t length);
 extern void fileinfo_diff(stackarray_t* old, stackarray_t* new, stackarray_t* diff);
 
 
+
+extern void fileinfo_free(fileinfo_t* info);
+
+
 // @brief strcat wrapper that ensures enough memory is allocated for the result
 //
 // @param[in,out] <left>  - string to store concatentation result

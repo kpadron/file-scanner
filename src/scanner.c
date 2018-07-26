@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -12,17 +13,34 @@
 
 #include "scanner.h"
 
-
+/**
+ * [_keycmp description]
+ * @param  a [description]
+ * @param  b [description]
+ * @return   [description]
+ */
 static inline int _keycmp(void* a, void* b)
 {
     return strcmp(((fileinfo_t*)a)->name, ((fileinfo_t*)b)->name);
 }
 
+/**
+ * [_memdup description]
+ * @param src  [description]
+ * @param size [description]
+ */
 static inline void* _memdup(void* src, size_t size)
 {
     return memcpy(malloc(size), src, size);
 }
 
+/**
+ * [_murmur3 description]
+ * @param  key    [description]
+ * @param  length [description]
+ * @param  seed   [description]
+ * @return        [description]
+ */
 static inline uint32_t _murmur3(void* key, size_t length, uint32_t seed)
 {
     uint8_t* key_x1 = (uint8_t*) key;
@@ -79,7 +97,13 @@ static inline uint32_t _murmur3(void* key, size_t length, uint32_t seed)
 void filelog_read(char* logpath, stackarray_t* stack)
 {
     FILE* f = fopen(logpath, "r");
-    if (!f) return;
+    if (!f)
+    {
+        char error[64];
+        sprintf(error, "filelog read <%s>", logpath);
+        perror(error);
+        return;
+    }
 
     fileinfo_t* info;
     char logstr[1024];
@@ -95,15 +119,15 @@ void filelog_read(char* logpath, stackarray_t* stack)
             break;
 
             case 1:
-            sscanf("%llu\n", &info->size);
+            sscanf(logstr, "%"PRIu64"\n", &info->size);
             break;
 
             case 2:
-            sscanf("%lu\n", &info->mtime);
+            sscanf(logstr, "%"PRIu32"\n", &info->mtime);
             break;
 
             default:
-            sscanf("%lu\n", &info->hash);
+            sscanf(logstr, "%"PRIu32"\n", &info->hash);
             stack_push(stack, info);
             break;
         }
@@ -115,15 +139,22 @@ void filelog_read(char* logpath, stackarray_t* stack)
 void filelog_write(char* logpath, stackarray_t* stack)
 {
     FILE* f = fopen(logpath, "w");
+    if (!f)
+    {
+        char error[64];
+        sprintf(error, "filelog write <%s>", logpath);
+        perror(error);
+        exit(1);
+    }
 
     for (uint64_t i = 0; i < stack->count; i++)
     {
         fileinfo_t* info = (fileinfo_t*) stack->array[i];
 
         fprintf(f, "%s", info->name);
-        fprintf(f, "%llu", info->size);
-        fprintf(f, "%lu", info->mtime);
-        fprintf(f, "%lu", info->hash);
+        fprintf(f, "%"PRIu64"", info->size);
+        fprintf(f, "%"PRIu32"", info->mtime);
+        fprintf(f, "%"PRIu32"", info->hash);
     }
 
     fclose(f);
@@ -227,27 +258,38 @@ void fileinfo_diff(stackarray_t* old, stackarray_t* new, stackarray_t* diff)
             fileinfo_t* new_info = (fileinfo_t*) stack_pop(new);
             fileinfo_t* old_info = (fileinfo_t*) stack_remove(old, new_info, _keycmp);
 
-            // Determine if versions are the same
-            if (old_info)
+            // Old file need to determine if versions are the same
+            if (old_info && new_info->size == old_info->size && new_info->mtime == old_info->mtime)
             {
-                // We think the file versions are the same
-                if (new_info->size == old_info->size && new_info->mtime == old_info->mtime)
-                {
-                    stack_push(diff, old_info);
-                    fileinfo_free(new_info);
-                }
-                else
-                {
-                    new_info->hash = file_hash(new_info->name, new_info->size);
-                    stack_push(diff, new_info);
-                    fileinfo_free(old_info);
-                }
-
+                // Add old info to diff stack
+                stack_push(diff, old_info);
+                fileinfo_free(new_info);
             }
+            // New file to be recorded
+            else
+            {
+                // Add new info to diff stack
+                new_info->hash = file_hash(new_info->name, new_info->size);
+                stack_push(diff, new_info);
+                if (old_info) fileinfo_free(old_info);
 
+                printf("Added %s\n", new_info->name);
+                printf("\tsize: %zu, mtime: %zu, hash: %zu\n", (size_t) new_info->size, (size_t) new_info->mtime, (size_t) new_info->hash);
+            }
         }
 
+        // Add any old left-overs to diff stack
+        while (old->count)
+        {
+            stack_push(diff, stack_pop(old));
+        }
     }
+}
+
+void fileinfo_free(fileinfo_t* info)
+{
+    free(info->name);
+    free(info);
 }
 
 

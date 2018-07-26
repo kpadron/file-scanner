@@ -31,3 +31,6 @@ extern data_t stack_pop(stackarray_t* stack);
 
 // Search for key in stack using keycmp function
 extern data_t stack_search(stackarray_t* stack, void* key, int (*keycmp)(void*, void*));
+
+// Remove entry with key from stack using keycmp function
+extern data_t stack_remove(stackarray_t* stack, void* key, int (*keycmp)(void*, void*));
