@@ -7,6 +7,7 @@ CFLAGS := -Wall -Wextra
 DEBUG := -g -Og
 
 INC := -I ./inc
+VPATH := ./src
 
 RM := -rm -f *.o *~ core
 
