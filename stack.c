@@ -50,3 +50,32 @@ data_t stack_pop(stackarray_t* stack)
 
     return stack->array[--stack->count];
 }
+
+data_t stack_search(stackarray_t* stack, void* key, int (*keycmp)(void*, void*))
+{
+    if (!stack || !stack->count) return NULL;
+
+    for (uint64_t i = 0; i < stack->count; i++)
+    {
+        if (!keycmp(key, stack->array[i])) return stack->array[i];
+    }
+
+    return NULL;
+}
+
+data_t stack_remove(stackarray_t* stack, void* key, int (*keycmp)(void*, void*))
+{
+    if (!stack || !stack->count) return NULL;
+
+    for (uint64_t i = 0; i < stack->count; i++)
+    {
+        if (!keycmp(key, stack->array[i]))
+        {
+            data_t data = stack->array[i];
+            memmove(&stack->array[i], &stack->array[i + 1], (--stack->count - i) * sizeof(data_t));
+            return data;
+        }
+    }
+
+    return NULL;
+}

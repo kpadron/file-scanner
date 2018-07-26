@@ -13,6 +13,11 @@
 #include "scanner.h"
 
 
+static inline int _keycmp(void* a, void* b)
+{
+    return strcmp(((fileinfo_t*)a)->name, ((fileinfo_t*)b)->name);
+}
+
 static inline void* _memdup(void* src, size_t size)
 {
     return memcpy(malloc(size), src, size);
@@ -200,33 +205,47 @@ void fileinfo_diff(stackarray_t* old, stackarray_t* new, stackarray_t* diff)
 {
     if (!old->count)
     {
-        for (uint64_t i = 0; i < new->count; i++)
+        while (new->count)
         {
-            fileinfo_t* new_info = (fileinfo_t*) new->array[i];
-            fileinfo_t* diff_info = (fileinfo_t*) malloc(sizeof(fileinfo_t));
-
-            diff_info->name = strdup(new_info->name);
-            diff_info->size = new_info->size;
-            diff_info->mtime = new_info->mtime;
-            diff_info->hash = file_hash(diff_info->name, diff_info->size);
-
-            stack_insert(diff, diff_info);
+            fileinfo_t* new_info = (fileinfo_t*) stack_pop(new);
+            new_info->hash = file_hash(new_info->name, new_info->size);
+            stack_push(diff, new_info);
         }
     }
     else if (!new->count)
     {
-        fileinfo_t* old_info = (fileinfo_t*) old->array[i];
-        fileinfo_t* diff_info = (fileinfo_t*) malloc(sizeof(fileinfo_t));
-
-        diff_info->name = strdup(old_info->name);
-        diff_info->size = old_info->size;
-        diff_info->mtime = old_info->mtime;
-        diff_info->hash = old_info->hash;
-
-        stack_insert(diff, diff_info);
+        while (old->count)
+        {
+            stack_push(diff, stack_pop(old));
+        }
     }
     else
     {
+        while (new->count)
+        {
+            // Determine if new file is in log
+            fileinfo_t* new_info = (fileinfo_t*) stack_pop(new);
+            fileinfo_t* old_info = (fileinfo_t*) stack_remove(old, new_info, _keycmp);
+
+            // Determine if versions are the same
+            if (old_info)
+            {
+                // We think the file versions are the same
+                if (new_info->size == old_info->size && new_info->mtime == old_info->mtime)
+                {
+                    stack_push(diff, old_info);
+                    fileinfo_free(new_info);
+                }
+                else
+                {
+                    new_info->hash = file_hash(new_info->name, new_info->size);
+                    stack_push(diff, new_info);
+                    fileinfo_free(old_info);
+                }
+
+            }
+
+        }
 
     }
 }
