@@ -11,6 +11,8 @@
 #include "scanner.h"
 #include "stack.h"
 
+#define SCANNER_LOGPATH "~/.fslog"
+
 // SCAN FILE OR DIRECTORY AND SAVE METADATA
 // * Use a hash table with chaining
 // * Each entry stores filename, filesize, filetime, filehash
@@ -26,29 +28,39 @@ int main(int argc, char** argv)
         exit(1);
     }
 
-    stackarray_t stack;
-    stack_init(&stack);
+    stackarray_t old_stack;
+    stackarray_t new_stack;
+    stackarray_t diff_stack;
 
-    // Loop through all arguments
+    stack_init(&old_stack);
+    stack_init(&new_stack);
+
+    // Lookup old file info
+    filelog_read(SCANNER_LOGPATH, &old_stack);
+
+    // Lookup new file info
     for (int i = 1; i < argc; i++)
     {
-        filetree_parse(argv[i], &stack);
+        filetree_parse(argv[i], &new_stack);
     }
+
+    // Compare diff of new and old
+    fileinfo_diff(&old_stack, &new_stack, &diff_stack);
 
     // Loop through and generate hashes
-    for (uint64_t i = 0; i < stack.count; i++)
+    for (uint64_t i = 0; i < new_stack.count; i++)
     {
-        fileinfo_t* info = (fileinfo_t*)stack.array[i];
+        fileinfo_t* info = (fileinfo_t*)new_stack.array[i];
 
-        info->hash = file_hash(info->name, info->stat.st_size);
+        info->hash = file_hash(info->name, info->size);
     }
 
-    for (uint64_t i = 0; i < stack.count; i++)
+    for (uint64_t i = 0; i < new_stack.count; i++)
     {
-        fileinfo_t* info = (fileinfo_t*)stack.array[i];
+        fileinfo_t* info = (fileinfo_t*)new_stack.array[i];
 
         printf("%s:\n", info->name);
-        printf("\t%zu\n", info->stat.st_size);
+        printf("\t%zu\n", info->size);
         printf("\t0x%zx\n", (size_t) info->hash);
     }
 

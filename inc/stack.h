@@ -28,3 +28,5 @@ extern void stack_push(stackarray_t* stack, data_t data);
 
 // Remove data from the top of the stack
 extern data_t stack_pop(stackarray_t* stack);
+
+extern data_t stack_search(stackarray_t* stack, void* key, int (*keycmp)(void*, void*));

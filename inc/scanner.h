@@ -5,17 +5,18 @@
 #pragma once
 #include <stdlib.h>
 #include <stdint.h>
-#include <sys/stat.h>
 
 #include "stack.h"
 
+#define SCANNER_BLOCK_SIZE 1 << 20 // MB
 
 // Structure to store file metadata
 typedef struct
 {
-    char* name;
-    struct stat stat;
-    uint64_t hash;
+    char* name;     //< Name and path to file
+    uint64_t size;  //< Size in bytes of file
+    uint32_t mtime; //< Time of last modification
+    uint32_t hash;  //< 32-bit hash of files contents
 } fileinfo_t;
 
 
@@ -26,13 +27,13 @@ typedef struct
 extern void filetree_parse(char* filepath, stackarray_t* stack);
 
 
-// @brief Generate a 64-bit hash of the contents of <filepath>
+// @brief Generate a 32-bit hash of the contents of <filepath>
 //
 // @param[in] <filepath> - path to file to hash
 // @param[in] <length>   - size in bytes of file to hash
 //
-// @return 64-bit hash produced from <filepath> contents
-extern uint64_t file_hash(char* filepath, size_t length);
+// @return 32-bit hash produced from <filepath> contents
+extern uint32_t file_hash(char* filepath, size_t length);
 
 
 // @brief strcat wrapper that ensures enough memory is allocated for the result
