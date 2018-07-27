@@ -17,6 +17,7 @@ typedef struct
     uint64_t size;  //< Size in bytes of file
     uint32_t mtime; //< Time of last modification
     uint32_t hash;  //< 32-bit hash of files contents
+    uint8_t flag;   //< flag used to indicate status
 } fileinfo_t;
 
 

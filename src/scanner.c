@@ -151,10 +151,10 @@ void filelog_write(char* logpath, stackarray_t* stack)
     {
         fileinfo_t* info = (fileinfo_t*) stack->array[i];
 
-        fprintf(f, "%s", info->name);
-        fprintf(f, "%"PRIu64"", info->size);
-        fprintf(f, "%"PRIu32"", info->mtime);
-        fprintf(f, "%"PRIu32"", info->hash);
+        fprintf(f, "%s\n", info->name);
+        fprintf(f, "%"PRIu64"\n", info->size);
+        fprintf(f, "%"PRIu32"\n", info->mtime);
+        fprintf(f, "%"PRIu32"\n", info->hash);
     }
 
     fclose(f);
@@ -178,6 +178,7 @@ void filetree_parse(char* filepath, stackarray_t* stack)
         info->name = (char*) strdup(filepath);
         info->size = (uint64_t) filestat.st_size;
         info->mtime = (uint32_t) filestat.st_mtime;
+        info->flag = (uint8_t) 0;
 
         stack_push(stack, info);
     }
@@ -270,6 +271,7 @@ void fileinfo_diff(stackarray_t* old, stackarray_t* new, stackarray_t* diff)
             {
                 // Add new info to diff stack
                 new_info->hash = file_hash(new_info->name, new_info->size);
+                new_info->flag |= 1;
                 stack_push(diff, new_info);
                 if (old_info) fileinfo_free(old_info);
 
@@ -284,6 +286,12 @@ void fileinfo_diff(stackarray_t* old, stackarray_t* new, stackarray_t* diff)
             stack_push(diff, stack_pop(old));
         }
     }
+}
+
+
+void fileinfo_backup(char* backuppath, stackarray_t* stack)
+{
+    
 }
 
 void fileinfo_free(fileinfo_t* info)

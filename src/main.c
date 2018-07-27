@@ -12,6 +12,7 @@
 #include "stack.h"
 
 #define SCANNER_LOGNAME ".fslog"
+#define SCANNER_DIRNAME ".fsdir"
 
 // SCAN FILE OR DIRECTORY AND SAVE METADATA
 // * Use a hash table with chaining
@@ -29,8 +30,6 @@ int main(int argc, char** argv)
     }
 
     char* logpath = (char*) malloc(128);
-    logpath = stracat(logpath, getenv("HOME"));
-    logpath = stracat(logpath, "/");
     logpath = stracat(logpath, SCANNER_LOGNAME);
 
     stackarray_t old_stack;

@@ -31,6 +31,9 @@
 # Executables
 scanner
 hash_test
+.fslog
+huf
+lzw
 *.exe
 *.out
 *.app
