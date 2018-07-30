@@ -82,6 +82,14 @@ def tree_parse(path, table):
     Recursively scan directories and add fileinfo objects to table.
     """
 
+    path = os.path.abspath(path)
+
+    if os.path.isfile(path):
+        stat = os.stat(path)
+        info = FileInfo(path, stat.st_size, stat.st_mtime)
+        table[path] = info
+        return
+
     with os.scandir(path) as dir:
         for entry in dir:
             if entry.is_file():
@@ -110,11 +118,11 @@ def filelog_read(path):
                 elif i % 5 == 2:
                     info.mtime = float(line)
                 elif i % 5 == 3:
-                    info.hash = int(line, 0)
+                    info.hash = int(line, 16)
                 else:
                     info.flags = int(line)
                     table[info.name] = info
-    except:
+    except FileNotFoundError:
         pass
 
     return table
@@ -130,26 +138,33 @@ def filelog_write(path, table):
             zf.write(str(v))
 
 
-def fileinfo_diff(old_table, new_table):
+def fileinfo_diff(table):
     """
-    Compare two fileinfo tables and find changes.
+    Scan files that appear in the table and determine if they are updated.
     """
 
-    diff = old_table.copy()
+    updated = []
 
-    for _, new in new_table.items():
-        # Add file if new file, or tracked file is updated
-        if new.name not in old_table or old_table[new.name].size != new.size or old_table[new.name].mtime != new.mtime:
-            new.hash = file_hash(new.name)
-            new.flags |= 0x1
-            diff[new.name] = new
+    # Scan files from table to see if they are different
+    for k, v in table.items():
+        stat = os.stat(k)
 
-    return diff
+        # File appears to be different
+        if (v.size != stat.st_size or v.mtime < stat.st_mtime)
+            # Generate new hash of file's contents
+            h = file_hash(k)
+            v.flags |= 0x1
+            updated.append((0, k))
+        # File appears to be the same
+        else:
+            v.flags &= ~0x1
+
+    return updated
 
 
-def fileinfo_archive(path, table):
+def fileinfo_archive(path, updated):
     """
-    Archive files marked as new in archive located at path.
+    Archive files that are marked as new in archive located at path.
     """
 
     # Create temporary directory
@@ -158,12 +173,15 @@ def fileinfo_archive(path, table):
         try:
             shutil.unpack_archive(path, dir, 'gztar')
         except:
-            pass
+            print('error opening archive')
 
         # Copy new or updated files to temp directory
         for _, file in table.items():
             # perform path name correction
-            dst = os.path.normpath(os.path.join(dir, file.name))
+            if os.path.isabs(file.name):
+                dst = os.path.join(dir, os.path.normpath(os.path.relpath(file.name, os.path.sep)))
+            else:
+                dst = os.path.join(dir, os.path.normpath(file.name))
 
             # Copy file overwriting existing data
             if file.flags & 0x1:
@@ -192,17 +210,34 @@ if __name__ == '__main__':
         print('Usage: %s <filepath> ...' % (sys.argv[0]))
         sys.exit(1)
 
-    new_table = {}
+    # Read file info from log
+    print('Reading log...')
     old_table = filelog_read(SCANNER_LOG)
+    print('  entries read: %d' % (len(old_table)))
 
+    # Add any new files to list
+    print('Adding new files...')
+    new_table = {}
     for i in range(1, argc):
         tree_parse(sys.argv[i], new_table)
 
-    diff_table = fileinfo_diff(old_table, new_table)
+    print('  files added: %d' % (len(new_table)))
 
-    for k, v in diff_table.items():
-        print(v)
+    # Combine old and new table with old entries overwriting new ones
+    table = {**new_table, **old_table}
 
-    fileinfo_archive(SCANNER_ARCHIVE, diff_table)
+    # Scan files for changes or updates
+    print('Scanning files for changes...')
+    updated = fileinfo_diff(table)
+    print('  files changed: %d' % (len(updated)))
 
-    filelog_write(SCANNER_LOG, diff_table)
+    # Add new or updated files to archive, remove old references
+    print('Archiving files...')
+    fileinfo_archive(SCANNER_ARCHIVE, updated)
+
+    # Write updated log info to file
+    print('Writing new log...')
+    filelog_write(SCANNER_LOG, table)
+
+    print('Done')
+    sys.exit(0)
