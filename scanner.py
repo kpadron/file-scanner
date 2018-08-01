@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import gzip
 import hashlib
+import csv
 
 
 class FileInfo:
@@ -27,19 +28,19 @@ class FileInfo:
         self.flags = 0
 
         if name:
-            self.name = name
+            self.name = str(name)
 
         if size:
-            self.size = size
+            self.size = int(size)
 
         if mtime:
-            self.mtime = mtime
+            self.mtime = float(mtime)
 
         if hash:
-            self.hash = hash
+            self.hash = int(hash, 0)
 
         if flags:
-            self.flags = flags
+            self.flags = int(flags, 0)
 
     def __str__(self):
         """
@@ -129,19 +130,12 @@ def filelog_read(path):
 
     try:
         with gzip.open(path, 'rt') as zf:
-            for i, line in enumerate(zf.read().splitlines()):
-                if i % 5 == 0:
-                    info = FileInfo()
-                    info.name = str(line)
-                elif i % 5 == 1:
-                    info.size = int(line)
-                elif i % 5 == 2:
-                    info.mtime = float(line)
-                elif i % 5 == 3:
-                    info.hash = int(line, 0)
-                else:
-                    info.flags = int(line, 0)
-                    table[info.name] = info
+            reader = csv.reader(zf)
+
+            for row in reader:
+                info = FileInfo(*row)
+                table[info.name] = info
+
     except FileNotFoundError:
         pass
 
@@ -153,9 +147,13 @@ def filelog_write(path, table):
     Write log and pack fileinfo objects into it.
     """
 
-    with gzip.open(path, 'wt') as zf:
+    with gzip.open(path, 'wt', newline='') as zf:
+        writer = csv.writer(zf)
+
         for _, v in table.items():
-            zf.write(str(v))
+            writer.writerow([str(v.name), str(v.size), str(v.mtime), hex(v.hash), hex(v.flags)])
+        # for _, v in table.items():
+        #     zf.write(str(v))
 
 
 def fileinfo_add(log_table, add_table):
@@ -336,7 +334,7 @@ if __name__ == '__main__':
 
     # SCANNER_LOG = os.path.join(os.path.expanduser('~'), '.fslog.gz')
     # SCANNER_ARCHIVE = os.path.join(os.path.expanduser('~'), '.fsarchive.tar.gz')
-    SCANNER_LOG = '.fslog.gz'
+    SCANNER_LOG = '.fslog.csv.gz'
     SCANNER_ARCHIVE = '.fsarchive.tar.gz'
     add_table = {}
     remove_table = {}
