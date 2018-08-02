@@ -393,8 +393,8 @@ if __name__ == '__main__':
         deleted = fileinfo_clean(log_table)
 
         if args.verbosity > 1:
-            print('  files archived: %d' %(archived))
-            print('  files deleted: %d' %(deleted))
+            print('  files archived: %d' % (archived))
+            print('  files deleted: %d' % (deleted))
 
     # Write updated log info to file
     if args.verbosity > 0:
